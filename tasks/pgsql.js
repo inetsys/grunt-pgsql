@@ -13,6 +13,10 @@ module.exports = function(grunt) {
         return "(PGPASSWORD=" + options.db.password + " " + cmd + ")";
     }
 
+    function to_csv(sql) {
+        return "COPY (" + sql + ") TO STDOUT WITH CSV HEADER;";
+    }
+
     function pgdump_args(options) {
         return [
             "-U", options.db.user,
@@ -36,18 +40,19 @@ module.exports = function(grunt) {
     }
 
     function exec(cmd, callback) {
-        grunt.log.writeln("running: " + cmd.info);
+        console.error("running: " + cmd.info);
 
         require('child_process').exec(cmd, function(error, stdout, stderr) {
             if (error) {
-                grunt.log.error(error);
+                console.error(error);
             }
 
             if (stdout && stdout.length) {
                 grunt.verbose.write(stdout);
             }
-            if (stdout && stdout.length) {
-                grunt.log.error(error);
+
+            if (stderr && stderr.length) {
+                console.error(error);
             }
 
             callback(error, stdout, stderr);
@@ -187,7 +192,7 @@ module.exports = function(grunt) {
         'Move constraints from given database to target database',
         function() {
             var options = get_options('pgsql-drop-constraints', this.target),
-                done = this.async();
+                done = this.async(),
                 cmd = [
                     wrap_pwd('/usr/bin/psql ' + psql_args(options).join(" ") +' -w -c "SELECT \'ALTER TABLE \'||nspname||\'.\'||relname||\' DROP CONSTRAINT \'||conname||\';\' FROM pg_constraint INNER JOIN pg_class ON conrelid=pg_class.oid INNER JOIN pg_namespace ON pg_namespace.oid=pg_class.relnamespace ORDER BY CASE WHEN contype=\'f\' THEN 0 ELSE 1 END,contype,nspname,relname,conname"', options),
                     'grep ALTER',
@@ -208,7 +213,7 @@ module.exports = function(grunt) {
             var options = get_options('pgsql-move-constraints', this.target),
                 done = this.async();
 
-            console.log(user, pwd, host, database);
+            //console.log(user, pwd, host, database);
 
             var cmd = [
                 wrap_pwd('/usr/bin/psql -w ' + psql_args({db:{user: user, password: pwd, host: host, name: database}}).join(" ") +' -c "SELECT \'ALTER TABLE \'||nspname||\'.\'||relname||\' ADD CONSTRAINT \'||conname||\' \'|| pg_get_constraintdef(pg_constraint.oid)||\';\' FROM pg_constraint INNER JOIN pg_class ON conrelid=pg_class.oid INNER JOIN pg_namespace ON pg_namespace.oid=pg_class.relnamespace ORDER BY CASE WHEN contype=\'f\' THEN 0 ELSE 1 END DESC,contype DESC,nspname DESC,relname DESC,conname DESC;"', {db:{password:pwd}}),
@@ -218,6 +223,55 @@ module.exports = function(grunt) {
 
             exec(cmd, function() {
                 done();
+            });
+        }
+    );
+
+    grunt.registerMultiTask(
+        'pgsql-overwrite',
+        'Display sqls needed to copy given query into another database without any warning. (pgsql-overwrite:target:sql:table)',
+        function(sql, table) {
+            var options = get_options('pgsql-overwrite', this.target),
+                done = this.async();
+
+
+
+            exec_sql(to_csv(sql), options, function(error, stdout, stderr) {
+                var parse = require('csv-parse');
+
+                parse(stdout.trim(), {comment: '#'}, function(err, output) {
+                    var header = output[0];
+
+                    output = output.slice(1);
+
+                    var updates = output.map(function(line, kline) {
+
+                        return "UPDATE " + table + " SET " +
+                            line.map(function(v, k) {
+                                return header[k] + " = '" + v + "'";
+
+                            }).join(", ") +
+                            " WHERE id = " + line[0];
+                    });
+
+                    updates.push("");
+
+                    var inserts = output.map(function(line, kline) {
+                        if (kline === 0) return;
+
+                        return "INSERT INTO " + table + " (" + header.join(", ") + ") SELECT " +
+                            line.map(function(v, k) {
+                                return "'" + v + "'";
+                            }).join(", ") +
+                            " WHERE NOT EXISTS (SELECT 1 FROM " + table + " WHERE id = " + line[0] + ")";
+                    });
+                    inserts.push("");
+
+                    console.log(updates.join(";\n"));
+                    console.log(inserts.join(";\n"));
+
+                    done();
+                });
             });
         }
     );

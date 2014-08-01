@@ -40,5 +40,8 @@
     "PostgreSQL",
     "Postgre",
     "pgsql"
-  ]
+  ],
+  "dependencies": {
+    "csv-parse": "0.0.5"
+  }
 }

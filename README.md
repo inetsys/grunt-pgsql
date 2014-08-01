@@ -72,31 +72,41 @@ No use atm
 
 ### MultiTasks
 
-#### pgsql-dump
+#### pgsql-dump:target:file
 
 Dump a database
 
-When target is **all**, loop through all target and run them, *so dump **all** databases*. File must have "%s" that will be replaced by the target name.
+There is a special case: `all` that loop through all targets and run them (*so dump **all** databases*), given file must have "%s" as replacement for each target name.
 
 ```bash
-grunt pgsql-dump:[target]:dump.tar.gz
+grunt pgsql-dump:[target]:dump.gz
 grunt pgsql-dump:[target]:dump.txt
 
 grunt pgsql-dump:all:%.txt
 ```
 
-#### pgsql-load
+#### pgsql-load:target:file
 
 Load given dump
 
 When target is **all**, loop through all target and run them -> *load **all** databases*. File must have "%s" that will be replaced by the target name.
 
 ```bash
-grunt pgsql-load:[target]:dump.tar.gz
+grunt pgsql-load:[target]:dump.gz
 grunt pgsql-load:[target]:dump.txt
 ```
 
+#### pgsql-overwrite:target:sql:dst_table
+
+Display sqls needed to copy given query into another database without any warning.
+
+```bash
+grunt pgsql-safe-overwrite:solutraza_testing:"select * from src_table":dst_table > querys.sql
+```
+
 #### pgsql-drop
+
+Drop all tables and constraints
 
 ```bash
 grunt pgsql-pgsql:drop:[target]
@@ -104,13 +114,17 @@ grunt pgsql-pgsql:drop:[target]
 
 #### pgsql-drop-constraints
 
+Drop constraints
+
 ```bash
 grunt pgsql-drop-constraints:[target]
 ```
 
 #### pgsql-move-constrants
 
-**TODO**: Use config instead of arguments.
+Create constraints found in target into the given database.
+
+**TODO**: Use another config target instead of all arguments.
 
 ```bash
 grunt pgsql-move-constrants:[target]:src_user:src_pwd:src_host:src_dbname
