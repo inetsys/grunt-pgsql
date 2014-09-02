@@ -209,16 +209,15 @@ module.exports = function(grunt) {
     grunt.registerMultiTask(
         'pgsql-move-constraints',
         'Move constraints from given database to target database',
-        function(user, pwd, host, database) {
-            var options = get_options('pgsql-move-constraints', this.target),
+        function(destination) {
+            var src_options = get_options('pgsql-move-constraints', this.target),
+                dst_options = get_options('pgsql-move-constraints', destination),
                 done = this.async();
 
-            //console.log(user, pwd, host, database);
-
             var cmd = [
-                wrap_pwd('/usr/bin/psql -w ' + psql_args({db:{user: user, password: pwd, host: host, name: database}}).join(" ") +' -c "SELECT \'ALTER TABLE \'||nspname||\'.\'||relname||\' ADD CONSTRAINT \'||conname||\' \'|| pg_get_constraintdef(pg_constraint.oid)||\';\' FROM pg_constraint INNER JOIN pg_class ON conrelid=pg_class.oid INNER JOIN pg_namespace ON pg_namespace.oid=pg_class.relnamespace ORDER BY CASE WHEN contype=\'f\' THEN 0 ELSE 1 END DESC,contype DESC,nspname DESC,relname DESC,conname DESC;"', {db:{password:pwd}}),
+                wrap_pwd('/usr/bin/psql -w ' + psql_args(src_options).join(" ") +' -c "SELECT \'ALTER TABLE \'||nspname||\'.\'||relname||\' ADD CONSTRAINT \'||conname||\' \'|| pg_get_constraintdef(pg_constraint.oid)||\';\' FROM pg_constraint INNER JOIN pg_class ON conrelid=pg_class.oid INNER JOIN pg_namespace ON pg_namespace.oid=pg_class.relnamespace ORDER BY CASE WHEN contype=\'f\' THEN 0 ELSE 1 END DESC,contype DESC,nspname DESC,relname DESC,conname DESC;"', src_options),
                 '/bin/grep ALTER',
-                wrap_pwd('/usr/bin/psql -w ' + psql_args(options).join(" ") +' -f -', options)
+                wrap_pwd('/usr/bin/psql -w ' + psql_args(dst_options).join(" ") +' -f -', dst_options)
             ].join(" | ");
 
             exec(cmd, function() {

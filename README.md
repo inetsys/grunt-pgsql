@@ -124,8 +124,8 @@ grunt pgsql-drop-constraints:[target]
 
 Create constraints found in target into the given database.
 
-**TODO**: Use another config target instead of all arguments.
+*Notice* Both targets must be defined in `pgsql-move-constrants`
 
 ```bash
-grunt pgsql-move-constrants:[target]:src_user:src_pwd:src_host:src_dbname
+grunt pgsql-move-constrants:[src_target]:dst_target
 ```
