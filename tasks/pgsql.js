@@ -10,7 +10,7 @@
 
 module.exports = function(grunt) {
     function wrap_pwd(cmd, options) {
-        return "(PGPASSWORD=" + options.db.password + " " + cmd + ")";
+        return "(PGPASSWORD='" + options.db.password.replace("'", "\'") + "' " + cmd + ")";
     }
 
     function to_csv(sql) {
